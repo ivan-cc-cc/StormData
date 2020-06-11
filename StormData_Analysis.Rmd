@@ -1,0 +1,140 @@
+---
+title: "StormData Analyse"
+author: "Dai Yichao (IVAN)"
+date: "6/10/2020"
+output: html_document
+---
+
+***
+
+## Synopsis
+
+Welcome to the report. Storms and other severe weather events can cause varying degrees of economic problems for communities and municipalities. The purpose of this report is to analyse which specific types of severe weather events have the most serious health and economic consequences for the population. Death and injury data will be used to determine the severity of the population's health outcomes. The database tracks the characteristics of major storms and weather events in the United States, including when and where they occurred, and estimates of any casualties and property damage.
+
+## Question
+
+- Are most harmful types of events with respect to facilities change compared to 2008 and 2011?
+
+- Are most harmful types of events with respect to injuries change compared to 2008 and 2011?
+
+
+***
+
+## Profile Setup
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+## Data Processing
+
+First, let us put the original data set. 
+
+```{r processData,cache = TRUE}
+StormData = read.csv("repdata_data_StormData.csv.bz2")
+head(StormData)
+dim(StormData)
+str(StormData)
+```
+
+Because this research want to compare the data of 2008 and 2011, so we just want to subset the original data set to form the analytic data. We start from the `BGN_DATE` variable.
+
+```{r}
+
+StormData$BGN_DATE = as.character(StormData$BGN_DATE)
+StormData$BGN_DATE = as.Date(StormData$BGN_DATE,format = "%m/%e/%Y %T")
+library(lubridate)
+StormData$Year = year(StormData$BGN_DATE)
+da = subset(StormData,StormData$Year %in% c(2008,2011))
+da2008 = subset(da, da$Year %in% c(2008))
+da2011 = subset(da, da$Year %in% c(2011))
+
+library(dplyr)
+Facility_Injury_2008 = da2008 %>%
+        group_by(EVTYPE) %>%
+        summarise(sum_facility = sum(FATALITIES,na.rm = TRUE),
+                  sum_jury = sum(INJURIES,na.rm = TRUE),
+                  sum_crop = sum(CROPDMG,na.rm = TRUE))
+Facility_2008 = Facility_Injury_2008[order(-Facility_Injury_2008$sum_facility),c(1,2)][1:15,]
+Injury_2008 = Facility_Injury_2008[order(-Facility_Injury_2008$sum_jury),c(1,3)][1:15,]
+
+
+Facility_Injury_2011 = da2011 %>%
+        group_by(EVTYPE) %>%
+        summarise(sum_facility = sum(FATALITIES,na.rm = TRUE),
+                  sum_jury = sum(INJURIES,na.rm = TRUE),
+                  sum_crop = sum(CROPDMG,na.rm = TRUE))
+Facility_2011 = Facility_Injury_2011[order(-Facility_Injury_2011$sum_facility),c(1,2)][1:15,]
+Injury_2011 = Facility_Injury_2011[order(-Facility_Injury_2011$sum_jury),c(1,3)][1:15,]
+
+mrg1 = Facility_Injury_2008
+
+```
+
+***
+
+## Explory Data Analysis
+
+
+```{r}
+Facility_2008
+Facility_2011
+Injury_2008
+Injury_2011
+```
+
+***
+
+## Result
+
+```{r,fig.width=10}
+par(mfrow = c(1, 2), mar = c(10, 4, 2, 2), las = 2, cex = 0.7, cex.main = 1.4, cex.lab = 1)
+barplot(height = Facility_2008$sum_facility,names.arg = Facility_2008$EVTYPE,
+        col = heat.colors(15,alpha=1),
+        ylab = "Event Type",
+        main = "Top 15 Events to the Facilities in 2008",
+        ylim = c(0,600))
+barplot(height = Facility_2011$sum_facility,names.arg = Facility_2011$EVTYPE,
+        col = heat.colors(15,alpha=1),
+        ylab = "Event Type",
+        main = "Top 15 Events to the Facilities in 2011",
+        ylim = c(0,600))
+
+```
+
+
+```{r,fig.width=10}
+par(mfrow = c(1, 2), mar = c(10, 4, 2, 2), las = 2, cex = 0.7, cex.main = 1.4, cex.lab = 1)
+barplot(height = Injury_2008$sum_jury,names.arg = Injury_2008$EVTYPE,
+        col = heat.colors(15,alpha=1),
+        ylab = "Event Type",
+        main = "Top 15 Events Caused Injuries in 2008",
+        ylim = c(0,1000))
+barplot(height = Injury_2011$sum_jury,names.arg = Injury_2011$EVTYPE,
+        col = heat.colors(15,alpha=1),
+        ylab = "Event Type",
+        main = "Top 15 Events Caused Injuries in 2011",
+        ylim = c(0,1000))
+par(mfrow = c(1, 1))
+
+```
+
+```{r,fig.width=10}
+par(mfrow = c(1, 2), mar = c(10, 4, 2, 2),cex = 0.7, cex.main = 1.4, cex.lab = 1)
+mrgg = merge(Facility_Injury_2008,Facility_Injury_2011,by = "EVTYPE")
+plot(rep(x = 2008,each = 44),mrgg$sum_facility.x,col = mrgg$EVTYPE,
+     ylim = c(0,600),xlim = c(2007,2012),main = "Change in Facility Damage in 2008 and 2011",xlab = "Year",ylab = "Facility")
+points(rep(x = 2011,each = 44),mrgg$sum_facility.y,col = mrgg$EVTYPE)
+segments(rep(x = 2008,each = 44),mrgg$sum_facility.x,
+         rep(x = 2011,each = 44),mrgg$sum_facility.y,col = mrgg$EVTYPE)
+
+plot(rep(x = 2008,each = 44),mrgg$sum_jury.x,col = mrgg$EVTYPE,
+     ylim = c(0,600),xlim = c(2007,2012),main = "Change in Injuries in 2008 and 2011",xlab = "Year",ylab = "Facility")
+points(rep(x = 2011,each = 44),mrgg$sum_jury.y,col = mrgg$EVTYPE)
+segments(rep(x = 2008,each = 44),mrgg$sum_jury.x,
+         rep(x = 2011,each = 44),mrgg$sum_jury.y,col = mrgg$EVTYPE)
+
+```
+
